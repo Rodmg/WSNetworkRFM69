@@ -2,11 +2,23 @@
 #include <VirtualTimer.h>
 
 // Singleton instance of the radio driver
-RH_RF69 driver;
+RH_RF69_PAN driver;
 // Class to manage message delivery and receipt, using the driver declared above
 RHDatagram manager(driver, 0);
 
 static uint8_t recBuffer[RH_RF69_MAX_MESSAGE_LEN];
+
+static uint8_t voidKey[16] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+
+static bool isVoidKey(uint8_t * key)
+{
+  if(key == NULL) return true;
+  for(uint8_t i = 0; i < KEY_SIZE; i++)
+  {
+    if(key[i] != voidKey[i]) return false;
+  }
+  return true;
+}
 
 WSNetwork::WSNetwork()
 {
@@ -19,17 +31,23 @@ WSNetwork::WSNetwork()
 bool WSNetwork::begin()
 {
   uint8_t addr = Storage.getAddr();
+  uint8_t pan = Storage.getPan();
+  uint8_t key[KEY_SIZE];
+  Storage.getKey(key);
   if(addr == 0 || addr == 0xFF) return enterPairMode();
-  return begin(addr);
+  if(pan == 0 || pan == 0xFF) return enterPairMode();
+  setEncryptionKey(key);
+  return begin(addr, pan);
 }
 
-bool WSNetwork::begin(uint8_t addr)
+bool WSNetwork::begin(uint8_t addr, uint8_t pan)
 {
   manager.setThisAddress(addr);
   if (!manager.init())
     return false;
   driver.setFrequency(915.0);
-  driver.setModemConfig(RH_RF69::GFSK_Rb57_6Fd120);
+  driver.setModemConfig(RH_RF69_PAN::GFSK_Rb57_6Fd120);
+  driver.setHeaderPan(pan);
   return true;
 }
 
@@ -82,7 +100,8 @@ bool WSNetwork::sleep()
 bool WSNetwork::enterPairMode()
 {
   pairMode = true;
-  return begin(0x00);
+  setEncryptionKey(NULL);
+  return begin(0x00, 0x00);
 }
 
 bool WSNetwork::enterNormalMode()
@@ -124,16 +143,33 @@ void WSNetwork::loop()
 
     // Handle PAIRRES messages
     uint8_t from;
-    uint8_t len = 4;
+    uint8_t len = RH_RF69_MAX_MESSAGE_LEN;
     if(manager.recvfrom(recBuffer, (uint8_t*)&len, &from))
     {
-      // Check if its addressed to us
-      if(recBuffer[0] == 4 && recBuffer[1] == 0x03 && recBuffer[2] == randomId)
+      // Check if its addressed to us and has encryption key
+      if(len >= 21 && recBuffer[0] == 21 && recBuffer[1] == 0x03 && recBuffer[2] == randomId)
       {
         // Save given address
         Storage.setAddr(recBuffer[3]);
+        Storage.setPan(recBuffer[4]);
+        Storage.setKey(&recBuffer[5]);
+        enterNormalMode();
+      }
+      // No encryption key
+      if(len >= 5 && recBuffer[0] == 5 && recBuffer[1] == 0x03 && recBuffer[2] == randomId)
+      {
+        // Save given address
+        Storage.setAddr(recBuffer[3]);
+        Storage.setPan(recBuffer[4]);
+        Storage.setKey(voidKey);
         enterNormalMode();
       }
     }
   }
+}
+
+void WSNetwork::setEncryptionKey(uint8_t * key)
+{
+  if(isVoidKey(key)) driver.setEncryptionKey(NULL);
+  else driver.setEncryptionKey(key);
 }
