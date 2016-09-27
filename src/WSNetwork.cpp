@@ -37,11 +37,10 @@ bool WSNetwork::begin()
   Storage.getKey(key);
   if(addr == 0 || addr == 0xFF) return enterPairMode();
   if(pan == 0 || pan == 0xFF) return enterPairMode();
-  setEncryptionKey(key);
-  return begin(addr, pan);
+  return begin(addr, pan, key);
 }
 
-bool WSNetwork::begin(uint8_t addr, uint8_t pan)
+bool WSNetwork::begin(uint8_t addr, uint8_t pan, uint8_t * key)
 {
   manager.setThisAddress(addr);
   if (!manager.init())
@@ -49,6 +48,7 @@ bool WSNetwork::begin(uint8_t addr, uint8_t pan)
   driver.setFrequency(915.0);
   driver.setModemConfig(RH_RF69_PAN::GFSK_Rb57_6Fd120);
   driver.setHeaderPan(pan);
+  setKey(key);
   return true;
 }
 
@@ -101,8 +101,7 @@ bool WSNetwork::sleep()
 bool WSNetwork::enterPairMode()
 {
   pairMode = true;
-  setEncryptionKey(NULL);
-  return begin(0x00, 0x00);
+  return begin(0x00, 0x00, NULL);
 }
 
 bool WSNetwork::enterNormalMode()
@@ -169,12 +168,8 @@ void WSNetwork::loop()
   }
 }
 
-void WSNetwork::setEncryptionKey(uint8_t * key)
+void WSNetwork::setKey(uint8_t * key)
 {
-  // Serial.println("Setting key");
-  // delay(100);
-  // if(isVoidKey(key)) driver.setEncryptionKey(NULL);
-  // else driver.setEncryptionKey(key);
-  // Serial.println("after Setting key");
-  // delay(100);
+  if(isVoidKey(key)) driver.setEncryptionKey(NULL);
+  else driver.setEncryptionKey(key);
 }

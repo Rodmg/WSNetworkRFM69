@@ -19,7 +19,7 @@ private:
 public:
   WSNetwork();
   bool begin();
-  bool begin(uint8_t addr, uint8_t pan = 0x01);
+  bool begin(uint8_t addr, uint8_t pan = 0x01, uint8_t * key = NULL);
   int connect();
   int read(unsigned char* buffer, int len, unsigned long timeout_ms);
   int write(unsigned char* buffer, int len, unsigned long timeout);
@@ -32,7 +32,7 @@ public:
   void sendPairReq();
   void loop();
   uint8_t getAddress();
-  void setEncryptionKey(uint8_t * key = NULL);
+  void setKey(uint8_t * key = NULL);
 };
 
 #endif //WSNETWORK_H
