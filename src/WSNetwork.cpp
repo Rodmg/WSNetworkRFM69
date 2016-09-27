@@ -2,18 +2,19 @@
 #include <VirtualTimer.h>
 
 // Singleton instance of the radio driver
-RH_RF69_PAN driver;
+static RH_RF69_PAN driver;
 // Class to manage message delivery and receipt, using the driver declared above
-RHDatagram manager(driver, 0);
+static RHDatagram manager(driver, 0);
 
 static uint8_t recBuffer[RH_RF69_MAX_MESSAGE_LEN];
 
-static uint8_t voidKey[16] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+#define ENC_KEY_SIZE 16
+static uint8_t voidKey[ENC_KEY_SIZE] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 
 static bool isVoidKey(uint8_t * key)
 {
-  if(key == NULL) return true;
-  for(uint8_t i = 0; i < KEY_SIZE; i++)
+  if(!key) return true;
+  for(uint8_t i = 0; i < ENC_KEY_SIZE; i++)
   {
     if(key[i] != voidKey[i]) return false;
   }
@@ -32,7 +33,7 @@ bool WSNetwork::begin()
 {
   uint8_t addr = Storage.getAddr();
   uint8_t pan = Storage.getPan();
-  uint8_t key[KEY_SIZE];
+  static uint8_t key[ENC_KEY_SIZE];
   Storage.getKey(key);
   if(addr == 0 || addr == 0xFF) return enterPairMode();
   if(pan == 0 || pan == 0xFF) return enterPairMode();
@@ -170,6 +171,10 @@ void WSNetwork::loop()
 
 void WSNetwork::setEncryptionKey(uint8_t * key)
 {
-  if(isVoidKey(key)) driver.setEncryptionKey(NULL);
-  else driver.setEncryptionKey(key);
+  // Serial.println("Setting key");
+  // delay(100);
+  // if(isVoidKey(key)) driver.setEncryptionKey(NULL);
+  // else driver.setEncryptionKey(key);
+  // Serial.println("after Setting key");
+  // delay(100);
 }
